@@ -1,0 +1,6 @@
+source_customer_id,nik,full_name,phone,email,birth_date
+LOS001,3217046418903111,Rafid Kuswoyo,081703214070,dlestari@example.net,1977-08-19
+LOS002,3257040351894191,Dewi P.,085273063633,phalimah@example.org,1993-02-22
+LOS003,3270823013563165,Drs. Gina Putra,082539703612,gina.putra@example.com,1988-06-21
+LOS004,3280444415156288,Hamima Mayasari,083954342008,,1968-07-19
+LOS005,8888888888888888,Andi Setiawan,081999888777,andi.setiawan@example.com,1991-03-15

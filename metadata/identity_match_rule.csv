@@ -1,0 +1,9 @@
+rule_id,signal,condition,score,decision,priority,status
+IM-001,NIK_EXACT,NIK exact match,100,MATCH,1,DRAFT
+IM-002,DOB_EXACT,DOB exact match,30,SUPPORT,2,DRAFT
+IM-003,PHONE_EXACT,Phone exact match,30,SUPPORT,2,DRAFT
+IM-004,EMAIL_EXACT,Email exact match,30,SUPPORT,2,DRAFT
+IM-005,NAME_SIMILARITY,Name similarity,20,SUPPORT,3,DRAFT
+IM-006,DOB_CONFLICT,Birth date conflict,0,CONFLICT,1,DRAFT
+IM-007,PHONE_CONFLICT,Phone conflict,0,CONFLICT,2,DRAFT
+IM-008,EMAIL_CONFLICT,Email conflict,0,CONFLICT,2,DRAFT

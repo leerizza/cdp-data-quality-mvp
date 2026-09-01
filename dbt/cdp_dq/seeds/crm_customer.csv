@@ -1,0 +1,6 @@
+source_customer_id,nik,full_name,phone,email,birth_date
+CRM001,3217046418903111,H. Rafid Kuswoyo,081703214070,dlestari@example.net,1977-08-19
+CRM002,3257040351894191,Dr. Dewi Pratiwi,085273063633,phalimah@example.org,1993-02-22
+CRM003,3270823013563165,Ratna Saptono,082539703612,hnatsir@example.com,1988-06-21
+CRM004,3280444415156288,Hamima Mayasari,083954342008,zkurniawan@example.net,1968-07-19
+CRM005,9999999999999999,Budi Santoso,081222333444,budi.santoso@example.com,1990-01-01

@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: stg_customer
+    description: "Standardized customer data."
+
+    columns:
+      - name: customer_id
+        description: "Unique customer identifier."
+        data_tests:
+          - not_null
+          - unique
+
+      - name: nik
+        description: "National identification number."
+        data_tests:
+          - not_null
+
+      - name: full_name
+        description: "Customer full name."
+
+      - name: phone
+        description: "Customer phone number."
+
+      - name: email
+        description: "Customer email address."
+        data_tests:
+          - not_null
+
+      - name: birth_date
+        description: "Customer date of birth."
+

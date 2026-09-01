@@ -1,0 +1,97 @@
+<title>CDP Data Quality</title>
+<style>
+  :root {
+    --bg: #f7f7f8; --panel: #ffffff; --ink: #18181b; --muted-ink: #6b7280;
+    --line: #e4e4e7; --ok: #15803d; --ok-bg: #dcfce7; --warn: #a16207;
+    --warn-bg: #fef9c3; --bad: #b91c1c; --bad-bg: #fee2e2; --accent: #1d4ed8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b0b0e; --panel: #17171b; --ink: #f4f4f5; --muted-ink: #a1a1aa;
+      --line: #2a2a31; --ok: #4ade80; --ok-bg: #14321f; --warn: #fbbf24;
+      --warn-bg: #35290a; --bad: #f87171; --bad-bg: #3b1414; --accent: #93b4fd;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b0b0e; --panel: #17171b; --ink: #f4f4f5; --muted-ink: #a1a1aa;
+    --line: #2a2a31; --ok: #4ade80; --ok-bg: #14321f; --warn: #fbbf24;
+    --warn-bg: #35290a; --bad: #f87171; --bad-bg: #3b1414; --accent: #93b4fd;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 20px 64px; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 15px; margin: 34px 0 10px; text-transform: uppercase;
+       letter-spacing: .08em; color: var(--muted-ink); }
+  .sub { color: var(--muted-ink); font-size: 13px; margin-bottom: 22px; }
+  .cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card .label { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted-ink); }
+  .card .value { font-size: 26px; font-weight: 600; margin-top: 6px; letter-spacing: -0.02em; }
+  .banner { border-radius: 10px; padding: 12px 16px; margin: 18px 0 0; font-size: 14px; border: 1px solid; }
+  .banner.bad { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); }
+  .banner.warn { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
+  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+       color: var(--muted-ink); font-weight: 600; }
+  tbody tr:last-child td { border-bottom: none; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pill.ok { background: var(--ok-bg); color: var(--ok); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.bad { background: var(--bad-bg); color: var(--bad); }
+  .pill.muted { background: var(--line); color: var(--muted-ink); }
+  .empty { color: var(--muted-ink); font-style: italic; }
+  footer { margin-top: 40px; color: var(--muted-ink); font-size: 12px;
+            border-top: 1px solid var(--line); padding-top: 14px; }
+</style>
+
+<div class="wrap">
+  <h1>CDP Data Quality</h1>
+  <div class="sub">Run <code>RUN-20260901-072648</code> &middot; generated 2026-09-01 14:29</div>
+
+  <div class="cards">
+    <div class="card"><div class="label">CDP Score</div><div class="value">90.4</div></div>
+    <div class="card"><div class="label">Gate</div><div class="value"><span class="pill bad">BLOCKED</span></div></div>
+    <div class="card"><div class="label">Golden Entities</div><div class="value">4</div></div>
+    <div class="card"><div class="label">Golden Customers</div><div class="value">3</div></div>
+    <div class="card"><div class="label">Quarantined</div><div class="value">5</div></div>
+    <div class="card"><div class="label">Open Reviews</div><div class="value">3</div></div>
+  </div>
+
+  <div class="banner bad"><strong>BLOCKED</strong> CRITICAL rule breach - zero tolerance: DQ-CUS-003 (1 record(s))</div>
+
+  <h2>Score breakdown</h2>
+  <div class="scroll"><table><thead><tr><th>Dimension</th><th>Score</th><th>Weight</th><th>Contribution</th><th>Detail</th></tr></thead><tbody><tr><td>golden_quality</td><td>100.0</td><td>0.25</td><td>25.0</td><td>3/4 entities assessed, avg score 100.0</td></tr><tr><td>source_dq</td><td>99.5</td><td>0.25</td><td>24.9</td><td>995/1000 records passed source DQ</td></tr><tr><td>consistency</td><td>95.0</td><td>0.2</td><td>19.0</td><td>19/20 attribute groups without conflict</td></tr><tr><td>identity</td><td>80.0</td><td>0.2</td><td>16.0</td><td>12/15 source records resolved to an entity</td></tr><tr><td>review_health</td><td>55.0</td><td>0.1</td><td>5.5</td><td>3 open review(s), 3 HIGH</td></tr></tbody></table></div>
+
+  <h2>Source DQ rules</h2>
+  <div class="scroll"><table><thead><tr><th>Rule</th><th>Severity</th><th>Status</th><th>Failed</th><th>Threshold</th><th>Metric</th></tr></thead><tbody><tr><td>DQ-CUS-001</td><td>CRITICAL</td><td><span class="pill ok">PASS</span></td><td>0</td><td>100.0</td><td>PASS_RATE</td></tr><tr><td>DQ-CUS-002</td><td>CRITICAL</td><td><span class="pill ok">PASS</span></td><td>0</td><td>100.0</td><td>PASS_RATE</td></tr><tr><td>DQ-CUS-003</td><td>CRITICAL</td><td><span class="pill bad">FAIL</span></td><td>1</td><td>100.0</td><td>PASS_RATE</td></tr><tr><td>DQ-CUS-004</td><td>CRITICAL</td><td><span class="pill ok">PASS</span></td><td>0</td><td>100.0</td><td>PASS_RATE</td></tr><tr><td>DQ-CUS-005</td><td>HIGH</td><td><span class="pill bad">FAIL</span></td><td>2</td><td>0.1</td><td>FAILURE_RATE</td></tr><tr><td>DQ-CUS-006</td><td>HIGH</td><td><span class="pill ok">PASS</span></td><td>1</td><td>99.0</td><td>PASS_RATE</td></tr><tr><td>DQ-CUS-007</td><td>MEDIUM</td><td><span class="pill ok">PASS</span></td><td>0</td><td>99.0</td><td>PASS_RATE</td></tr><tr><td>DQ-CUS-008</td><td>HIGH</td><td><span class="pill bad">FAIL</span></td><td>1</td><td>100.0</td><td>PASS_RATE</td></tr></tbody></table></div>
+
+  <h2>Golden entities</h2>
+  <div class="scroll"><table><thead><tr><th>Golden ID</th><th>Status</th><th>Confidence</th><th>Conflict</th><th>Quality</th><th>Score</th></tr></thead><tbody><tr><td>G000001</td><td><span class="pill ok">ACTIVE</span></td><td>HIGH</td><td>False</td><td><span class="pill ok">EXCELLENT</span></td><td>100.0</td></tr><tr><td>G000002</td><td><span class="pill ok">ACTIVE</span></td><td>HIGH</td><td>False</td><td><span class="pill ok">EXCELLENT</span></td><td>100.0</td></tr><tr><td>G000003</td><td><span class="pill warn">REVIEW</span></td><td>MEDIUM</td><td>True</td><td><span class="pill muted">NOT_ASSESSED</span></td><td></td></tr><tr><td>G000004</td><td><span class="pill ok">ACTIVE</span></td><td>HIGH</td><td>False</td><td><span class="pill ok">EXCELLENT</span></td><td>100.0</td></tr></tbody></table></div>
+
+  <h2>Golden record lineage</h2>
+  <div class="scroll"><table><thead><tr><th>Golden ID</th><th>Attribute</th><th>Value</th><th>Source</th><th>Attr DQ</th><th>Steward</th></tr></thead><tbody><tr><td>G000001</td><td>birth_date</td><td>1977-08-19</td><td>LOS:LOS001</td><td><span class="pill ok">PASS</span></td><td></td></tr><tr><td>G000001</td><td>email</td><td>dlestari@example.net</td><td>CRM:CRM001</td><td><span class="pill ok">PASS</span></td><td></td></tr><tr><td>G000001</td><td>full_name</td><td>H. Rafid Kuswoyo</td><td>CRM:CRM001</td><td><span class="pill ok">PASS</span></td><td></td></tr><tr><td>G000001</td><td>nik</td><td>3217046418903111</td><td>CRM:CRM001</td><td><span class="pill ok">PASS</span></td><td></td></tr><tr><td>G000001</td><td>phone</td><td>081703214070</td><td>MOBILE:MOB001</td><td><span class="pill ok">PASS</span></td><td></td></tr><tr><td>G000002</td><td>birth_date</td><td>1993-02-22</td><td>LOS:LOS002</td><td><span class="pill ok">PASS</span></td><td></td></tr><tr><td>G000002</td><td>email</td><td>phalimah@example.org</td><td>CRM:CRM002</td><td><span class="pill ok">PASS</span></td><td>APPROVED</td></tr><tr><td>G000002</td><td>full_name</td><td>Dr. Dewi Pratiwi</td><td>CRM:CRM002</td><td><span class="pill ok">PASS</span></td><td>APPROVED</td></tr><tr><td>G000002</td><td>nik</td><td>3257040351894191</td><td>CRM:CRM002</td><td><span class="pill ok">PASS</span></td><td>APPROVED</td></tr><tr><td>G000002</td><td>phone</td><td>085273063633</td><td>MOBILE:MOB002</td><td><span class="pill ok">PASS</span></td><td>APPROVED</td></tr><tr><td>G000004</td><td>birth_date</td><td>1968-07-19</td><td>LOS:LOS004</td><td><span class="pill ok">PASS</span></td><td></td></tr><tr><td>G000004</td><td>email</td><td>zkurniawan@example.net</td><td>CRM:CRM004</td><td><span class="pill ok">PASS</span></td><td></td></tr><tr><td>G000004</td><td>full_name</td><td>Hamima Mayasari</td><td>CRM:CRM004</td><td><span class="pill ok">PASS</span></td><td></td></tr><tr><td>G000004</td><td>nik</td><td>3280444415156288</td><td>CRM:CRM004</td><td><span class="pill ok">PASS</span></td><td></td></tr><tr><td>G000004</td><td>phone</td><td>083954342008</td><td>MOBILE:MOB004</td><td><span class="pill ok">PASS</span></td><td></td></tr></tbody></table></div>
+
+  <h2>Open review queue</h2>
+  <div class="scroll"><table><thead><tr><th>Issue</th><th>Severity</th><th>Golden ID</th><th>Source</th><th>Attribute</th><th>Reason</th></tr></thead><tbody><tr><td>ATTRIBUTE_CONFLICT</td><td>HIGH</td><td>G000003</td><td>-</td><td>email</td><td>CRM:CRM003=hnatsir@example.com; LOS:LOS003=gina.putra@example.com; MOBILE:MOB003=hnatsir@example.com</td></tr><tr><td>IDENTITY_CONFLICT</td><td>HIGH</td><td>G000003</td><td>LOS:LOS003</td><td></td><td>CONFLICT against MOBILE:MOB003 - Candidate score=130.0; signals=NIK,DOB,PHONE,CONFLICT:EMAIL</td></tr><tr><td>IDENTITY_CONFLICT</td><td>HIGH</td><td>G000003</td><td>CRM:CRM003</td><td></td><td>CONFLICT against LOS:LOS003 - Candidate score=130.0; signals=NIK,DOB,PHONE,CONFLICT:EMAIL</td></tr></tbody></table></div>
+
+  <h2>Cross-source consistency</h2>
+  <div class="scroll"><table><thead><tr><th>Golden ID</th><th>Attribute</th><th>Status</th><th>Distinct</th><th>Values</th></tr></thead><tbody><tr><td>G000003</td><td>email</td><td><span class="pill bad">CONFLICT</span></td><td>2</td><td>CRM:CRM003=hnatsir@example.com; LOS:LOS003=gina.putra@example.com; MOBILE:MOB003=hnatsir@example.com</td></tr><tr><td>G000001</td><td>full_name</td><td><span class="pill warn">VARIATION</span></td><td>3</td><td>CRM:CRM001=h. rafid kuswoyo; LOS:LOS001=rafid kuswoyo; MOBILE:MOB001=rafid k.</td></tr><tr><td>G000002</td><td>full_name</td><td><span class="pill warn">VARIATION</span></td><td>2</td><td>CRM:CRM002=dr. dewi pratiwi; LOS:LOS002=dewi p.; MOBILE:MOB002=dr. dewi pratiwi</td></tr><tr><td>G000003</td><td>full_name</td><td><span class="pill warn">VARIATION</span></td><td>3</td><td>CRM:CRM003=ratna saptono; LOS:LOS003=drs. gina putra; MOBILE:MOB003=ratna s.</td></tr></tbody></table></div>
+
+  <h2>Run history</h2>
+  <div class="scroll"><table><thead><tr><th>Run</th><th>Source pass %</th><th>Quarantined</th><th>Critical</th><th>Reviews</th><th>CDP score</th><th>Gate</th></tr></thead><tbody><tr><td>RUN-20260901-071845</td><td>99.5</td><td>5</td><td>1</td><td>3</td><td>90.4</td><td><span class="pill bad">BLOCKED</span></td></tr><tr><td>RUN-20260901-072648</td><td>99.5</td><td>5</td><td>1</td><td>3</td><td>90.4</td><td><span class="pill bad">BLOCKED</span></td></tr></tbody></table></div>
+
+  <h2>Steward decisions</h2>
+  <div class="scroll"><table><thead><tr><th>Action</th><th>Source</th><th>Golden ID</th><th>By</th><th>Reason</th><th>When</th></tr></thead><tbody><tr><td>APPROVED</td><td>CRM:CRM002</td><td>G000002</td><td>DATA_STEWARD</td><td>Approved possible identity match for MVP demonstration</td><td>2026-08-31 19:04:02.181156</td></tr><tr><td>APPROVED</td><td>MOBILE:MOB002</td><td>G000002</td><td>DATA_STEWARD</td><td>Data Steward approved MOB002 as a member of G000002 based on matching phone, email, and birth date.</td><td>2026-08-31 19:11:55.415462</td></tr></tbody></table></div>
+
+  <footer>
+    Generated from <code>database/cdp.duckdb</code> by
+    <code>dq_engine/build_dashboard.py</code>. Re-run the pipeline and this
+    script to refresh.
+  </footer>
+</div>

@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# DuckDB databases are build artifacts: the whole pipeline rebuilds them
+# from the seeds with `python main.py`. They are also rewritten wholesale
+# on every run, so committing them would bloat history fast.
+#
+# NOTE: steward decisions in cdp.identity_resolution_action live only in
+# the database. They are exported to metadata/identity_resolution_action.csv
+# so a fresh clone can reproduce the demo state.
+*.duckdb
+*.duckdb.wal
+database/*.bak-*
+
+# dbt
+dbt/**/target/
+dbt/**/dbt_packages/
+dbt/**/logs/
+logs/

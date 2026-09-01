@@ -1,0 +1,16 @@
+attribute,source_system,priority,status
+nik,CRM,1,DRAFT
+nik,LOS,2,DRAFT
+nik,MOBILE,3,DRAFT
+full_name,CRM,1,DRAFT
+full_name,LOS,2,DRAFT
+full_name,MOBILE,3,DRAFT
+phone,MOBILE,1,DRAFT
+phone,CRM,2,DRAFT
+phone,LOS,3,DRAFT
+email,CRM,1,DRAFT
+email,MOBILE,2,DRAFT
+email,LOS,3,DRAFT
+birth_date,LOS,1,DRAFT
+birth_date,CRM,2,DRAFT
+birth_date,MOBILE,3,DRAFT

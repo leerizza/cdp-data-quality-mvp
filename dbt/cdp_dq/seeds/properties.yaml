@@ -1,0 +1,42 @@
+version: 2
+
+seeds:
+  - name: customer
+    config:
+      column_types:
+        customer_id: varchar
+        nik: varchar
+        full_name: varchar
+        phone: varchar
+        email: varchar
+        birth_date: date
+
+  - name: crm_customer
+    config:
+      column_types:
+        source_customer_id: varchar
+        nik: varchar
+        full_name: varchar
+        phone: varchar
+        email: varchar
+        birth_date: date
+
+  - name: los_customer
+    config:
+      column_types:
+        source_customer_id: varchar
+        nik: varchar
+        full_name: varchar
+        phone: varchar
+        email: varchar
+        birth_date: date
+
+  - name: mobile_customer
+    config:
+      column_types:
+        source_customer_id: varchar
+        nik: varchar
+        full_name: varchar
+        phone: varchar
+        email: varchar
+        birth_date: date

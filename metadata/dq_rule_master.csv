@@ -1,0 +1,9 @@
+rule_id,domain,dataset,column_name,dimension,rule_name,severity,metric_type,threshold,implementation,status,owner,test_sql,action
+DQ-CUS-001,Customer,stg_customer,customer_id,Completeness,Customer ID must not be null,CRITICAL,PASS_RATE,100,dbt_generic,APPROVED,Data Management,customer_id IS NULL,BLOCK
+DQ-CUS-002,Customer,stg_customer,customer_id,Uniqueness,Customer ID must be unique,CRITICAL,PASS_RATE,100,dbt_generic,APPROVED,Data Management,customer_id IN (SELECT customer_id FROM main.stg_customer GROUP BY customer_id HAVING COUNT(*) > 1),BLOCK
+DQ-CUS-003,Customer,stg_customer,nik,Completeness,NIK must not be null,CRITICAL,PASS_RATE,100,dbt_generic,DRAFT,Data Management,nik IS NULL,BLOCK
+DQ-CUS-004,Customer,stg_customer,nik,Validity,NIK must contain 16 numeric digits,CRITICAL,PASS_RATE,100,dbt_custom,DRAFT,Data Management,"nik IS NOT NULL AND (length(nik) <> 16 OR NOT regexp_matches(nik, '^[0-9]{16}$'))",BLOCK
+DQ-CUS-005,Customer,stg_customer,nik,Uniqueness,NIK duplicate detection,HIGH,FAILURE_RATE,0.1,dbt_custom,DRAFT,Data Management,nik IS NOT NULL AND nik IN (SELECT nik FROM main.stg_customer WHERE nik IS NOT NULL GROUP BY nik HAVING COUNT(*) > 1),WARN
+DQ-CUS-006,Customer,stg_customer,phone,Validity,Phone must follow approved Indonesian format,HIGH,PASS_RATE,99,dbt_custom,DRAFT,Data Management,"phone IS NOT NULL AND NOT regexp_matches(phone, '^08[0-9]{8,13}$')",WARN
+DQ-CUS-007,Customer,stg_customer,email,Validity,Email must use valid format,MEDIUM,PASS_RATE,99,dbt_custom,DRAFT,Data Management,"email IS NOT NULL AND NOT regexp_matches(lower(email), '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')",WARN
+DQ-CUS-008,Customer,stg_customer,birth_date,Validity,Birth date must not be future,HIGH,PASS_RATE,100,dbt_custom,DRAFT,Data Management,birth_date IS NOT NULL AND birth_date > CURRENT_DATE,WARN
