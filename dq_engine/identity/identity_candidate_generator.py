@@ -6,6 +6,51 @@ import duckdb
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = PROJECT_ROOT / "database" / "cdp.duckdb"
+IDENTITY_SCORE_CSV = PROJECT_ROOT / "metadata" / "identity_score_rule.csv"
+
+REQUIRED_SIGNALS = [
+    "NIK_MATCH",
+    "DOB_MATCH",
+    "PHONE_MATCH",
+    "EMAIL_MATCH",
+    "DOB_CONFLICT",
+    "PHONE_CONFLICT",
+    "EMAIL_CONFLICT",
+]
+
+
+def load_signal_scores(conn) -> dict[str, int]:
+    """Read per-signal match scores from metadata.
+
+    Conflict signals carry their sign in the file (they are negative),
+    so every signal is simply added to the running score.
+
+    Missing signals are an error rather than a default: silently scoring
+    a signal as zero would change which pairs become MATCH without
+    anything in the output saying so.
+    """
+    if not IDENTITY_SCORE_CSV.exists():
+        raise RuntimeError(f"Identity score rules not found: {IDENTITY_SCORE_CSV}")
+
+    rows = conn.execute(
+        """
+        SELECT signal, CAST(score AS INTEGER)
+        FROM read_csv_auto(?)
+        WHERE upper(status) = 'ACTIVE'
+        """,
+        [str(IDENTITY_SCORE_CSV)],
+    ).fetchall()
+
+    scores = {signal: score for signal, score in rows}
+
+    missing = [s for s in REQUIRED_SIGNALS if s not in scores]
+    if missing:
+        raise RuntimeError(
+            f"{IDENTITY_SCORE_CSV.name} is missing ACTIVE signal(s): "
+            + ", ".join(missing)
+        )
+
+    return scores
 
 
 def normalize(value):
@@ -22,6 +67,12 @@ def normalize(value):
 
 def main() -> None:
     conn = duckdb.connect(str(DB_PATH))
+
+    signal_score = load_signal_scores(conn)
+    print(
+        f"Loaded {len(signal_score)} identity signal score(s) "
+        f"from {IDENTITY_SCORE_CSV.name}"
+    )
 
     rows = conn.execute("""
         SELECT
@@ -146,25 +197,25 @@ def main() -> None:
             score = 0
 
             if nik_match:
-                score += 100
+                score += signal_score["NIK_MATCH"]
 
             if dob_match:
-                score += 30
+                score += signal_score["DOB_MATCH"]
 
             if phone_match:
-                score += 30
+                score += signal_score["PHONE_MATCH"]
 
             if email_match:
-                score += 30
+                score += signal_score["EMAIL_MATCH"]
 
             if dob_conflict:
-                score -= 50
+                score += signal_score["DOB_CONFLICT"]
 
             if phone_conflict:
-                score -= 30
+                score += signal_score["PHONE_CONFLICT"]
 
             if email_conflict:
-                score -= 30
+                score += signal_score["EMAIL_CONFLICT"]
 
             candidate_id = str(uuid4())
 

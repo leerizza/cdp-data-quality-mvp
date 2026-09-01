@@ -30,20 +30,34 @@ import duckdb
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = PROJECT_ROOT / "database" / "cdp.duckdb"
 
-WEIGHTS = {
-    "source_dq": 0.25,
-    "identity": 0.20,
-    "golden_quality": 0.25,
-    "consistency": 0.20,
-    "review_health": 0.10,
-}
+THRESHOLD_CSV = PROJECT_ROOT / "metadata" / "quality_threshold.csv"
 
-STATUS_BANDS = [
-    (95.0, "EXCELLENT"),
-    (85.0, "GOOD"),
-    (70.0, "WARNING"),
-    (0.0, "POOR"),
-]
+
+def load_thresholds(conn, scope: str) -> dict[str, float]:
+    """Read the ACTIVE thresholds for one scope from metadata."""
+    if not THRESHOLD_CSV.exists():
+        raise RuntimeError(f"Thresholds not found: {THRESHOLD_CSV}")
+
+    rows = conn.execute(
+        """
+        SELECT key, CAST(value AS DOUBLE)
+        FROM read_csv_auto(?)
+        WHERE scope = ? AND upper(status) = 'ACTIVE'
+        """,
+        [str(THRESHOLD_CSV), scope],
+    ).fetchall()
+
+    if not rows:
+        raise RuntimeError(
+            f"No ACTIVE thresholds for scope '{scope}' in {THRESHOLD_CSV.name}"
+        )
+
+    return {key: value for key, value in rows}
+
+
+# Populated from metadata at run time; see main().
+WEIGHTS: dict[str, float] = {}
+STATUS_BANDS: list[tuple[float, str]] = []
 
 
 def pct(numerator: float, denominator: float) -> float | None:
@@ -103,7 +117,7 @@ def score_consistency(conn):
     return pct(agreeing, total), f"{agreeing}/{total} attribute groups without conflict"
 
 
-def score_review_health(conn):
+def score_review_health(conn, penalty_high: float, penalty_other: float):
     """100 when nothing is open; HIGH-severity items cost more."""
     row = conn.execute(
         """
@@ -116,7 +130,7 @@ def score_review_health(conn):
     ).fetchone()
     high, total = row
 
-    penalty = min(100.0, high * 15.0 + (total - high) * 5.0)
+    penalty = min(100.0, high * penalty_high + (total - high) * penalty_other)
     detail = f"{total} open review(s), {high} HIGH" if total else "no open reviews"
     return 100.0 - penalty, detail
 
@@ -133,6 +147,22 @@ def band(score: float | None) -> str:
 def main() -> int:
     conn = duckdb.connect(str(DB_PATH))
 
+    thresholds = load_thresholds(conn, "cdp_score")
+    WEIGHTS.update({
+        "source_dq": thresholds["weight_source_dq"],
+        "identity": thresholds["weight_identity"],
+        "golden_quality": thresholds["weight_golden_quality"],
+        "consistency": thresholds["weight_consistency"],
+        "review_health": thresholds["weight_review_health"],
+    })
+    STATUS_BANDS[:] = [
+        (thresholds["band_excellent"], "EXCELLENT"),
+        (thresholds["band_good"], "GOOD"),
+        (thresholds["band_warning"], "WARNING"),
+        (0.0, "POOR"),
+    ]
+    print(f"Loaded CDP score weights from {THRESHOLD_CSV.name}")
+
     run = conn.execute(
         "SELECT run_id FROM dq.dq_run ORDER BY started_at DESC LIMIT 1"
     ).fetchone()
@@ -146,7 +176,11 @@ def main() -> int:
     idn_score, idn_detail = score_identity(conn)
     gld_score, gld_detail, assessed, total_entities = score_golden_quality(conn)
     cns_score, cns_detail = score_consistency(conn)
-    rvw_score, rvw_detail = score_review_health(conn)
+    rvw_score, rvw_detail = score_review_health(
+        conn,
+        thresholds["review_penalty_high"],
+        thresholds["review_penalty_other"],
+    )
 
     dimensions = [
         ("source_dq", src_score, src_detail),

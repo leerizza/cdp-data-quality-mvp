@@ -1,0 +1,8 @@
+signal,score,status,description
+NIK_MATCH,100,ACTIVE,national id is the strongest identity signal
+DOB_MATCH,30,ACTIVE,supporting signal
+PHONE_MATCH,30,ACTIVE,supporting signal
+EMAIL_MATCH,30,ACTIVE,supporting signal
+DOB_CONFLICT,-50,ACTIVE,two sources disagree on date of birth
+PHONE_CONFLICT,-30,ACTIVE,two sources disagree on phone
+EMAIL_CONFLICT,-30,ACTIVE,two sources disagree on email

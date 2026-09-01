@@ -6,6 +6,29 @@ import duckdb
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = PROJECT_ROOT / "database" / "cdp.duckdb"
+THRESHOLD_CSV = PROJECT_ROOT / "metadata" / "quality_threshold.csv"
+
+
+def load_thresholds(conn, scope: str) -> dict[str, float]:
+    """Read the ACTIVE thresholds for one scope from metadata."""
+    if not THRESHOLD_CSV.exists():
+        raise RuntimeError(f"Thresholds not found: {THRESHOLD_CSV}")
+
+    rows = conn.execute(
+        """
+        SELECT key, CAST(value AS DOUBLE)
+        FROM read_csv_auto(?)
+        WHERE scope = ? AND upper(status) = 'ACTIVE'
+        """,
+        [str(THRESHOLD_CSV), scope],
+    ).fetchall()
+
+    if not rows:
+        raise RuntimeError(
+            f"No ACTIVE thresholds for scope '{scope}' in {THRESHOLD_CSV.name}"
+        )
+
+    return {key: value for key, value in rows}
 
 
 def make_key(source_system, source_customer_id):
@@ -183,6 +206,9 @@ class UnionFind:
 def main():
     conn = duckdb.connect(str(DB_PATH))
 
+    thresholds = load_thresholds(conn, "identity_clustering")
+    print(f"Loaded clustering thresholds from {THRESHOLD_CSV.name}: {thresholds}")
+
     # ============================================================
     # 1. Load all source records
     # ============================================================
@@ -219,9 +245,9 @@ def main():
             match_score
         FROM cdp.identity_match
         WHERE match_status = 'MATCH'
-          AND match_score >= 150
+          AND match_score >= ?
         ORDER BY match_score DESC
-    """).fetchall()
+    """, [thresholds["trusted_edge_min_score"]]).fetchall()
 
     for (
         source_system,

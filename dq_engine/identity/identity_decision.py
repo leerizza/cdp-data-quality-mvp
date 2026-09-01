@@ -6,9 +6,32 @@ import duckdb
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = PROJECT_ROOT / "database" / "cdp.duckdb"
+THRESHOLD_CSV = PROJECT_ROOT / "metadata" / "quality_threshold.csv"
 
 
-def determine_decision(row):
+def load_thresholds(conn, scope: str) -> dict[str, float]:
+    """Read the ACTIVE thresholds for one scope from metadata."""
+    if not THRESHOLD_CSV.exists():
+        raise RuntimeError(f"Thresholds not found: {THRESHOLD_CSV}")
+
+    rows = conn.execute(
+        """
+        SELECT key, CAST(value AS DOUBLE)
+        FROM read_csv_auto(?)
+        WHERE scope = ? AND upper(status) = 'ACTIVE'
+        """,
+        [str(THRESHOLD_CSV), scope],
+    ).fetchall()
+
+    if not rows:
+        raise RuntimeError(
+            f"No ACTIVE thresholds for scope '{scope}' in {THRESHOLD_CSV.name}"
+        )
+
+    return {key: value for key, value in rows}
+
+
+def determine_decision(row, thresholds):
     (
         nik_match,
         dob_match,
@@ -35,7 +58,7 @@ def determine_decision(row):
     # ---------------------------------------------------------
     # Strong deterministic match.
     # ---------------------------------------------------------
-    if nik_match and score >= 100:
+    if nik_match and score >= thresholds["match_min_score"]:
         return "MATCH"
 
     # ---------------------------------------------------------
@@ -47,13 +70,16 @@ def determine_decision(row):
         bool(email_match),
     ])
 
-    if supporting_signals >= 2 and not strong_conflict:
+    if (
+        supporting_signals >= thresholds["possible_match_min_signals"]
+        and not strong_conflict
+    ):
         return "POSSIBLE_MATCH"
 
     # ---------------------------------------------------------
     # Moderate evidence.
     # ---------------------------------------------------------
-    if score >= 60 and not strong_conflict:
+    if score >= thresholds["possible_match_min_score"] and not strong_conflict:
         return "POSSIBLE_MATCH"
 
     return "NO_MATCH"
@@ -61,6 +87,9 @@ def determine_decision(row):
 
 def main():
     conn = duckdb.connect(str(DB_PATH))
+
+    thresholds = load_thresholds(conn, "identity_decision")
+    print(f"Loaded decision thresholds from {THRESHOLD_CSV.name}: {thresholds}")
 
     rows = conn.execute("""
         SELECT
@@ -120,7 +149,7 @@ def main():
             phone_conflict,
             email_conflict,
             score,
-        ])
+        ], thresholds)
 
         matched_on = []
 

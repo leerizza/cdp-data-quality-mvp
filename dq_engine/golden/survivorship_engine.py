@@ -14,33 +14,44 @@ ATTRIBUTES = [
     "birth_date",
 ]
 
-SOURCE_PRIORITY = {
-    "nik": {
-        "CRM": 1,
-        "LOS": 2,
-        "MOBILE": 3,
-    },
-    "full_name": {
-        "CRM": 1,
-        "LOS": 2,
-        "MOBILE": 3,
-    },
-    "phone": {
-        "MOBILE": 1,
-        "CRM": 2,
-        "LOS": 3,
-    },
-    "email": {
-        "CRM": 1,
-        "MOBILE": 2,
-        "LOS": 3,
-    },
-    "birth_date": {
-        "LOS": 1,
-        "CRM": 2,
-        "MOBILE": 3,
-    },
-}
+SURVIVORSHIP_RULE_CSV = PROJECT_ROOT / "metadata" / "survivorship_rule.csv"
+
+
+def load_source_priority(conn) -> dict[str, dict[str, int]]:
+    """Read attribute source priority from metadata.
+
+    Loaded through DuckDB rather than a Python CSV reader so the engine
+    keeps its one dependency, and read at run time so editing the CSV
+    actually changes which source wins - it used to be a dict in this
+    file, and the CSV beside it was decorative.
+
+    Only ACTIVE rows are loaded, so a rule can be retired without being
+    deleted from the file.
+    """
+    if not SURVIVORSHIP_RULE_CSV.exists():
+        raise RuntimeError(f"Survivorship rules not found: {SURVIVORSHIP_RULE_CSV}")
+
+    rows = conn.execute(
+        """
+        SELECT attribute_name, source_system, CAST(priority AS INTEGER)
+        FROM read_csv_auto(?)
+        WHERE upper(status) = 'ACTIVE'
+        ORDER BY attribute_name, priority
+        """,
+        [str(SURVIVORSHIP_RULE_CSV)],
+    ).fetchall()
+
+    if not rows:
+        raise RuntimeError(
+            f"No ACTIVE survivorship rules in {SURVIVORSHIP_RULE_CSV.name}; "
+            "survivorship cannot pick a winning source."
+        )
+
+    priority: dict[str, dict[str, int]] = {}
+    for attribute_name, source_system, rank in rows:
+        priority.setdefault(attribute_name, {})[source_system] = rank
+
+    return priority
 
 
 def normalize(value):
@@ -88,6 +99,12 @@ def get_dq_status(
 
 def main():
     conn = duckdb.connect(str(DB_PATH))
+
+    source_priority = load_source_priority(conn)
+    print(
+        f"Loaded source priority for {len(source_priority)} attribute(s) "
+        f"from {SURVIVORSHIP_RULE_CSV.name}"
+    )
 
     entities = conn.execute(
         """
@@ -192,9 +209,10 @@ def main():
                 if not dq_eligible:
                     continue
 
-                priority = SOURCE_PRIORITY[
-                    attribute
-                ].get(
+                priority = source_priority.get(
+                    attribute,
+                    {},
+                ).get(
                     source_system,
                     999,
                 )

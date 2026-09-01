@@ -1,0 +1,26 @@
+scope,key,value,status,description
+identity_decision,match_min_score,100,ACTIVE,NIK match at or above this score becomes MATCH
+identity_decision,possible_match_min_score,60,ACTIVE,moderate evidence becomes POSSIBLE_MATCH
+identity_decision,possible_match_min_signals,2,ACTIVE,supporting signals needed for POSSIBLE_MATCH
+identity_clustering,trusted_edge_min_score,150,ACTIVE,MATCH at or above this score joins a cluster
+golden_quality,weight_completeness,0.40,ACTIVE,
+golden_quality,weight_validity,0.40,ACTIVE,
+golden_quality,weight_identity,0.20,ACTIVE,
+golden_quality,identity_score_high,100,ACTIVE,score awarded for HIGH identity confidence
+golden_quality,identity_score_medium,70,ACTIVE,
+golden_quality,identity_score_low,40,ACTIVE,
+golden_quality,band_excellent,95,ACTIVE,at or above this score the entity is EXCELLENT
+golden_quality,band_good,85,ACTIVE,
+golden_quality,band_warning,70,ACTIVE,below this the entity is POOR
+cdp_score,weight_source_dq,0.25,ACTIVE,
+cdp_score,weight_identity,0.20,ACTIVE,
+cdp_score,weight_golden_quality,0.25,ACTIVE,
+cdp_score,weight_consistency,0.20,ACTIVE,
+cdp_score,weight_review_health,0.10,ACTIVE,
+cdp_score,review_penalty_high,15,ACTIVE,points lost per open HIGH severity review
+cdp_score,review_penalty_other,5,ACTIVE,points lost per other open review
+cdp_score,band_excellent,95,ACTIVE,
+cdp_score,band_good,85,ACTIVE,
+cdp_score,band_warning,70,ACTIVE,
+cdp_gate,block_below,70,ACTIVE,overall score below this blocks publication
+cdp_gate,warn_below,85,ACTIVE,overall score below this warns

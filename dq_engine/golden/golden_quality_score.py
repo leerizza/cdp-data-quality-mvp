@@ -15,15 +15,41 @@ ATTRIBUTES = [
 ]
 
 
-IDENTITY_SCORE = {
-    "HIGH": 100.0,
-    "MEDIUM": 70.0,
-    "LOW": 40.0,
-}
+THRESHOLD_CSV = PROJECT_ROOT / "metadata" / "quality_threshold.csv"
+
+
+def load_thresholds(conn, scope: str) -> dict[str, float]:
+    """Read the ACTIVE thresholds for one scope from metadata."""
+    if not THRESHOLD_CSV.exists():
+        raise RuntimeError(f"Thresholds not found: {THRESHOLD_CSV}")
+
+    rows = conn.execute(
+        """
+        SELECT key, CAST(value AS DOUBLE)
+        FROM read_csv_auto(?)
+        WHERE scope = ? AND upper(status) = 'ACTIVE'
+        """,
+        [str(THRESHOLD_CSV), scope],
+    ).fetchall()
+
+    if not rows:
+        raise RuntimeError(
+            f"No ACTIVE thresholds for scope '{scope}' in {THRESHOLD_CSV.name}"
+        )
+
+    return {key: value for key, value in rows}
 
 
 def main():
     conn = duckdb.connect(str(DB_PATH))
+
+    thresholds = load_thresholds(conn, "golden_quality")
+    identity_scores = {
+        "HIGH": thresholds["identity_score_high"],
+        "MEDIUM": thresholds["identity_score_medium"],
+        "LOW": thresholds["identity_score_low"],
+    }
+    print(f"Loaded golden quality thresholds from {THRESHOLD_CSV.name}")
 
     conn.execute(
         """
@@ -133,27 +159,27 @@ def main():
             / total_attributes
         ) * 100
 
-        identity_score = IDENTITY_SCORE.get(
+        identity_score = identity_scores.get(
             identity_confidence,
-            40.0,
+            thresholds["identity_score_low"],
         )
 
         quality_score = (
-            completeness_score * 0.40
-            + validity_score * 0.40
-            + identity_score * 0.20
+            completeness_score * thresholds["weight_completeness"]
+            + validity_score * thresholds["weight_validity"]
+            + identity_score * thresholds["weight_identity"]
         )
 
         if has_conflict:
             quality_status = "REVIEW"
 
-        elif quality_score >= 95:
+        elif quality_score >= thresholds["band_excellent"]:
             quality_status = "EXCELLENT"
 
-        elif quality_score >= 85:
+        elif quality_score >= thresholds["band_good"]:
             quality_status = "GOOD"
 
-        elif quality_score >= 70:
+        elif quality_score >= thresholds["band_warning"]:
             quality_status = "WARNING"
 
         else:

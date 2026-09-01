@@ -27,12 +27,37 @@ import duckdb
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = PROJECT_ROOT / "database" / "cdp.duckdb"
 
-BLOCK_SCORE = 70.0
-WARN_SCORE = 85.0
+THRESHOLD_CSV = PROJECT_ROOT / "metadata" / "quality_threshold.csv"
+
+
+def load_thresholds(conn, scope: str) -> dict[str, float]:
+    """Read the ACTIVE thresholds for one scope from metadata."""
+    if not THRESHOLD_CSV.exists():
+        raise RuntimeError(f"Thresholds not found: {THRESHOLD_CSV}")
+
+    rows = conn.execute(
+        """
+        SELECT key, CAST(value AS DOUBLE)
+        FROM read_csv_auto(?)
+        WHERE scope = ? AND upper(status) = 'ACTIVE'
+        """,
+        [str(THRESHOLD_CSV), scope],
+    ).fetchall()
+
+    if not rows:
+        raise RuntimeError(
+            f"No ACTIVE thresholds for scope '{scope}' in {THRESHOLD_CSV.name}"
+        )
+
+    return {key: value for key, value in rows}
 
 
 def main() -> int:
     conn = duckdb.connect(str(DB_PATH))
+
+    gate_thresholds = load_thresholds(conn, "cdp_gate")
+    BLOCK_SCORE = gate_thresholds["block_below"]
+    WARN_SCORE = gate_thresholds["warn_below"]
 
     score_row = conn.execute(
         """

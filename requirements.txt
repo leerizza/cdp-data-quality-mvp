@@ -8,3 +8,6 @@ dbt-duckdb==1.11.0
 # Only used by notebooks/generate_dummy.ipynb to build the source data.
 pandas==2.3.2
 faker==37.8.0
+
+# Tests
+pytest==8.4.2
