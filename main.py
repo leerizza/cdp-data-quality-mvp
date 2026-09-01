@@ -148,6 +148,7 @@ STAGES: list[Stage] = [
         "Build the human review queue from unresolved conflicts",
         [
             Step("build review queue", "py", "review/review_queue_builder.py"),
+            Step("group evidence into cases", "py", "review/review_case_builder.py"),
         ],
     ),
     Stage(

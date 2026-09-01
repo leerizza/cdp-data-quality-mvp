@@ -221,6 +221,14 @@ def build(conn) -> str:
   ''', ["Golden ID", "Attribute", "Value", "Source", "Attr DQ", "Steward"],
        pill_cols={4})}
 
+  <h2>Review cases</h2>
+  {table(conn, '''
+      SELECT subject_type, subject_key, severity, status,
+             evidence_count, issue_types, summary
+      FROM cdp.review_case ORDER BY status, severity, subject_key
+  ''', ["Subject", "Key", "Severity", "Status", "Evidence", "Types", "Summary"],
+       pill_cols={3})}
+
   <h2>Open review queue</h2>
   {table(conn, '''
       SELECT issue_type, severity, golden_id,

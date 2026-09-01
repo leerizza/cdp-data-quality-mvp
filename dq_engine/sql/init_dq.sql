@@ -355,6 +355,49 @@ CREATE INDEX IF NOT EXISTS idx_golden_entity_identity_signature
     ON cdp.golden_entity_identity (cluster_signature);
 
 -- =============================================================
+-- Review case model.
+--
+-- cdp.review_queue holds one row per detected issue, which is the right
+-- grain for detection but the wrong one for a steward: G000003 raises
+-- three separate rows (one attribute conflict, two identity conflicts)
+-- that are all the same question. A case groups the evidence about one
+-- subject so it can be worked once.
+--
+-- review_queue is unchanged and still the source of evidence; cases sit
+-- above it as the orchestration layer.
+--
+-- subject_type is GOLDEN_ENTITY when the evidence concerns an entity,
+-- SOURCE_RECORD when it concerns a record that has not joined one.
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS cdp.review_case (
+    case_id VARCHAR PRIMARY KEY,
+
+    subject_type VARCHAR NOT NULL,
+    subject_key VARCHAR NOT NULL,
+
+    severity VARCHAR NOT NULL,
+    status VARCHAR NOT NULL,
+
+    evidence_count INTEGER NOT NULL,
+    issue_types VARCHAR,
+    summary VARCHAR,
+
+    opened_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS cdp.review_case_member (
+    case_id VARCHAR NOT NULL,
+    review_id VARCHAR NOT NULL,
+    issue_type VARCHAR NOT NULL,
+    severity VARCHAR,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (case_id, review_id)
+);
+
+-- =============================================================
 -- Identity resolution metrics, one row per run.
 --
 -- Replaces the single resolved/total ratio the CDP score used, which
