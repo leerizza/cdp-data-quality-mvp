@@ -80,12 +80,33 @@ def score_source_dq(conn, run_id):
     return pct(clean, total), f"{clean}/{total} records passed source DQ"
 
 
-def score_identity(conn):
-    total = conn.execute("SELECT COUNT(*) FROM main.customer_unified").fetchone()[0]
-    resolved = conn.execute(
-        "SELECT COUNT(*) FROM cdp.golden_entity_member"
-    ).fetchone()[0]
-    return pct(resolved, total), f"{resolved}/{total} source records resolved to an entity"
+def score_identity(conn, run_id):
+    """Read resolution health from cdp.identity_metrics.
+
+    This used to be resolved/total source records, which counted a
+    record sitting in a REVIEW entity as fully resolved. identity_metrics
+    weights those partially and deducts the pair conflict rate; see
+    dq_engine/identity/identity_metrics.py.
+    """
+    row = conn.execute(
+        """
+        SELECT resolution_health, confirmed_records, review_records,
+               unresolved_records, total_source_records
+        FROM cdp.identity_metrics
+        WHERE run_id = ?
+        """,
+        [run_id],
+    ).fetchone()
+
+    if row is None:
+        return None, "identity metrics not computed for this run"
+
+    health, confirmed, in_review, unresolved, total = row
+
+    return health, (
+        f"{confirmed}/{total} confirmed, {in_review} in review, "
+        f"{unresolved} unresolved"
+    )
 
 
 def score_golden_quality(conn):
@@ -173,7 +194,7 @@ def main() -> int:
     run_id = run[0]
 
     src_score, src_detail = score_source_dq(conn, run_id)
-    idn_score, idn_detail = score_identity(conn)
+    idn_score, idn_detail = score_identity(conn, run_id)
     gld_score, gld_detail, assessed, total_entities = score_golden_quality(conn)
     cns_score, cns_detail = score_consistency(conn)
     rvw_score, rvw_detail = score_review_health(

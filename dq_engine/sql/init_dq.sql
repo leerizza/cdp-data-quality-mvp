@@ -355,6 +355,38 @@ CREATE INDEX IF NOT EXISTS idx_golden_entity_identity_signature
     ON cdp.golden_entity_identity (cluster_signature);
 
 -- =============================================================
+-- Identity resolution metrics, one row per run.
+--
+-- Replaces the single resolved/total ratio the CDP score used, which
+-- counted a record sitting in a REVIEW entity as fully resolved. The
+-- pair-level rates share a denominator (every evaluated pair) so they
+-- can be read together; the record-level rates share theirs (every
+-- source record).
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS cdp.identity_metrics (
+    run_id VARCHAR PRIMARY KEY,
+
+    total_pairs INTEGER NOT NULL,
+    match_rate DOUBLE,
+    possible_match_rate DOUBLE,
+    conflict_rate DOUBLE,
+
+    total_source_records INTEGER NOT NULL,
+    confirmed_records INTEGER NOT NULL,
+    review_records INTEGER NOT NULL,
+    unresolved_records INTEGER NOT NULL,
+    unresolved_rate DOUBLE,
+
+    golden_entity_count INTEGER NOT NULL,
+    avg_cluster_size DOUBLE,
+
+    resolution_health DOUBLE,
+
+    computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================
 -- Per-run snapshot for history and trend.
 --
 -- Golden-layer tables hold only the current state (no run_id), so a

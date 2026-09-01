@@ -130,6 +130,7 @@ STAGES: list[Stage] = [
             Step("decide matches", "py", "identity/identity_decision.py"),
             Step("rank candidates", "py", "identity/identity_ranker.py"),
             Step("cluster into golden entities", "py", "identity/identity_clustering.py"),
+            Step("identity metrics", "py", "identity/identity_metrics.py"),
         ],
     ),
     Stage(

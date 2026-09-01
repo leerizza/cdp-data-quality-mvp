@@ -191,6 +191,17 @@ def build(conn) -> str:
       FROM dq.dq_summary WHERE run_id = ? ORDER BY rule_id
   ''', ["Rule", "Severity", "Status", "Failed", "Threshold", "Metric"], [run_id], pill_cols={2})}
 
+  <h2>Identity resolution</h2>
+  {table(conn, '''
+      SELECT total_pairs, ROUND(match_rate,1), ROUND(possible_match_rate,1),
+             ROUND(conflict_rate,1), confirmed_records, review_records,
+             unresolved_records, golden_entity_count, ROUND(avg_cluster_size,2),
+             ROUND(resolution_health,1)
+      FROM cdp.identity_metrics WHERE run_id = ?
+  ''', ["Pairs", "Match %", "Possible %", "Conflict %", "Confirmed",
+        "In review", "Unresolved", "Entities", "Avg cluster", "Health"],
+       [run_id])}
+
   <h2>Golden entities</h2>
   {table(conn, '''
       SELECT e.golden_id, e.entity_status, e.confidence, e.has_conflict,
