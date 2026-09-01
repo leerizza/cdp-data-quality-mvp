@@ -355,6 +355,59 @@ CREATE INDEX IF NOT EXISTS idx_golden_entity_identity_signature
     ON cdp.golden_entity_identity (cluster_signature);
 
 -- =============================================================
+-- Slowly changing history (type 2) for the golden layer.
+--
+-- cdp.golden_customer and cdp.golden_entity_member are rebuilt wholesale
+-- on every run, so the profile a customer had yesterday is overwritten
+-- with no trace. These tables keep every version: the previous one is
+-- closed (valid_to set, is_current FALSE) and the new one inserted, with
+-- a change_reason saying why.
+--
+-- Rows are only written when something actually changed, so re-running
+-- the pipeline over unchanged data does not manufacture versions.
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS cdp.golden_customer_history (
+    history_id VARCHAR PRIMARY KEY,
+    golden_id VARCHAR NOT NULL,
+
+    nik VARCHAR,
+    full_name VARCHAR,
+    phone VARCHAR,
+    email VARCHAR,
+    birth_date DATE,
+
+    entity_status VARCHAR,
+    confidence VARCHAR,
+
+    valid_from TIMESTAMP NOT NULL,
+    valid_to TIMESTAMP,
+    is_current BOOLEAN NOT NULL DEFAULT TRUE,
+    change_reason VARCHAR NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS cdp.golden_entity_member_history (
+    history_id VARCHAR PRIMARY KEY,
+    golden_id VARCHAR NOT NULL,
+    source_system VARCHAR NOT NULL,
+    source_customer_id VARCHAR NOT NULL,
+
+    membership_status VARCHAR,
+    membership_confidence VARCHAR,
+
+    valid_from TIMESTAMP NOT NULL,
+    valid_to TIMESTAMP,
+    is_current BOOLEAN NOT NULL DEFAULT TRUE,
+    change_reason VARCHAR NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_golden_customer_history_current
+    ON cdp.golden_customer_history (golden_id, is_current);
+
+CREATE INDEX IF NOT EXISTS idx_golden_member_history_current
+    ON cdp.golden_entity_member_history (golden_id, source_customer_id, is_current);
+
+-- =============================================================
 -- Review case model.
 --
 -- cdp.review_queue holds one row per detected issue, which is the right

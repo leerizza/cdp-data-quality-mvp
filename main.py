@@ -139,6 +139,12 @@ STAGES: list[Stage] = [
         [
             Step("attribute-level DQ", "py", "source_dq/attribute_dq.py"),
             Step("survivorship", "py", "golden/survivorship_engine.py"),
+            Step(
+                "golden history (SCD2)",
+                "py",
+                "golden/golden_history.py",
+                note="closes the previous version and opens a new one when values change",
+            ),
             Step("cross-source consistency", "py", "golden/cross_source_consistency.py"),
             Step("golden quality score", "py", "golden/golden_quality_score.py"),
         ],

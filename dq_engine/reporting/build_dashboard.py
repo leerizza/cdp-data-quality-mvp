@@ -246,6 +246,16 @@ def build(conn) -> str:
       ORDER BY consistency_status, golden_id
   ''', ["Golden ID", "Attribute", "Status", "Distinct", "Values"], pill_cols={2})}
 
+  <h2>Golden profile history</h2>
+  {table(conn, '''
+      SELECT golden_id, full_name, phone, email, entity_status,
+             CASE WHEN is_current THEN 'current' ELSE 'superseded' END,
+             change_reason, valid_from, valid_to
+      FROM cdp.golden_customer_history
+      ORDER BY golden_id, valid_from
+  ''', ["Golden ID", "Name", "Phone", "Email", "Entity", "Version",
+        "Change", "Valid from", "Valid to"])}
+
   <h2>Run history</h2>
   {table(conn, '''
       SELECT run_id, ROUND(source_pass_rate,2), quarantined_records,
