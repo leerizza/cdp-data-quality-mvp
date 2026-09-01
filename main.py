@@ -16,7 +16,7 @@ Usage:
 
 Note: DuckDB names the attached database after the file, so the database
 must stay at database/cdp.duckdb. Renaming it breaks every cdp.<table>
-reference and every dbt-generated view. See dq_engine/init_dq.sql.
+reference and every dbt-generated view. See dq_engine/sql/init_dq.sql.
 """
 
 from __future__ import annotations
@@ -69,7 +69,7 @@ STAGES: list[Stage] = [
         "generate",
         "Regenerate the dummy source CSVs and copy them into dbt seeds",
         [
-            Step("generate multi-source CSVs", "py", "generate_multi_source_v2.py"),
+            Step("generate multi-source CSVs", "py", "tools/generate_multi_source_v2.py"),
             Step("sync data/ -> dbt seeds/", "sync"),
         ],
     ),
@@ -97,16 +97,16 @@ STAGES: list[Stage] = [
         "dq",
         "Run the rule-based DQ engine over stg_customer",
         [
-            Step("init DQ schema", "sql", "init_dq.sql"),
-            Step("load rules", "py", "load_rules.py"),
-            Step("execute rules", "py", "dq_executor.py"),
-            Step("build incidents", "py", "dq_incident_builder.py"),
-            Step("build quarantine", "py", "quarantine_builder.py"),
-            Step("build summary", "py", "dq_summary_builder.py"),
+            Step("init DQ schema", "sql", "sql/init_dq.sql"),
+            Step("load rules", "py", "source_dq/load_rules.py"),
+            Step("execute rules", "py", "source_dq/dq_executor.py"),
+            Step("build incidents", "py", "source_dq/dq_incident_builder.py"),
+            Step("build quarantine", "py", "source_dq/quarantine_builder.py"),
+            Step("build summary", "py", "source_dq/dq_summary_builder.py"),
             Step(
                 "quality gate",
                 "py",
-                "dq_quality_gate.py",
+                "source_dq/dq_quality_gate.py",
                 note="reports only; use --strict to make BLOCKED abort the run",
             ),
         ],
@@ -126,38 +126,38 @@ STAGES: list[Stage] = [
         "identity",
         "Match, decide and cluster source records into golden entities",
         [
-            Step("generate candidates", "py", "identity_candidate_generator.py"),
-            Step("decide matches", "py", "identity_decision.py"),
-            Step("rank candidates", "py", "identity_ranker.py"),
-            Step("cluster into golden entities", "py", "identity_clustering.py"),
+            Step("generate candidates", "py", "identity/identity_candidate_generator.py"),
+            Step("decide matches", "py", "identity/identity_decision.py"),
+            Step("rank candidates", "py", "identity/identity_ranker.py"),
+            Step("cluster into golden entities", "py", "identity/identity_clustering.py"),
         ],
     ),
     Stage(
         "golden",
         "Score attributes, pick surviving values and grade the golden records",
         [
-            Step("attribute-level DQ", "py", "attribute_dq.py"),
-            Step("survivorship", "py", "survivorship_engine.py"),
-            Step("cross-source consistency", "py", "cross_source_consistency.py"),
-            Step("golden quality score", "py", "golden_quality_score.py"),
+            Step("attribute-level DQ", "py", "source_dq/attribute_dq.py"),
+            Step("survivorship", "py", "golden/survivorship_engine.py"),
+            Step("cross-source consistency", "py", "golden/cross_source_consistency.py"),
+            Step("golden quality score", "py", "golden/golden_quality_score.py"),
         ],
     ),
     Stage(
         "review",
         "Build the human review queue from unresolved conflicts",
         [
-            Step("build review queue", "py", "review_queue_builder.py"),
+            Step("build review queue", "py", "review/review_queue_builder.py"),
         ],
     ),
     Stage(
         "score",
         "Score the CDP as a whole and decide whether it can be published",
         [
-            Step("CDP quality score", "py", "cdp_quality_score.py"),
+            Step("CDP quality score", "py", "scoring/cdp_quality_score.py"),
             Step(
                 "CDP quality gate",
                 "py",
-                "cdp_quality_gate.py",
+                "scoring/cdp_quality_gate.py",
                 note="exits non-zero when BLOCKED; verdict is stored in cdp.cdp_quality_gate",
             ),
         ],
@@ -166,21 +166,21 @@ STAGES: list[Stage] = [
         "lineage",
         "Trace every golden value back to the decisions that produced it",
         [
-            Step("build golden lineage", "py", "lineage_builder.py"),
+            Step("build golden lineage", "py", "reporting/lineage_builder.py"),
         ],
     ),
     Stage(
         "history",
         "Snapshot this run and compare it with the previous one",
         [
-            Step("run history + trend", "py", "dq_history.py"),
+            Step("run history + trend", "py", "reporting/dq_history.py"),
         ],
     ),
     Stage(
         "report",
         "Render the dashboard to reports/cdp_dq_dashboard.html",
         [
-            Step("build dashboard", "py", "build_dashboard.py"),
+            Step("build dashboard", "py", "reporting/build_dashboard.py"),
         ],
     ),
     Stage(
@@ -193,7 +193,7 @@ STAGES: list[Stage] = [
 ]
 
 # Gates report by default and only halt the run under --strict.
-GATE_STEPS = {"dq_quality_gate.py", "cdp_quality_gate.py"}
+GATE_STEPS = {"source_dq/dq_quality_gate.py", "scoring/cdp_quality_gate.py"}
 
 # Stages that only run when explicitly asked for.
 OPT_IN = {"generate", "test"}
@@ -287,7 +287,7 @@ def execute_step(step: Step, strict: bool) -> None:
     """
     is_gate = step.target in GATE_STEPS
     # Reading the source gate's verdict means capturing its output.
-    capture = strict and step.target == "dq_quality_gate.py"
+    capture = strict and step.target == "source_dq/dq_quality_gate.py"
 
     if step.kind == "py":
         code, out = run_python(step.target, capture)

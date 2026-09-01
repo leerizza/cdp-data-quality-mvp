@@ -63,20 +63,33 @@ The database is not committed (it is a build artifact). On a fresh clone:
 
 ```powershell
 python main.py                                          # builds everything
-python dq_engine\resolve_identity.py --import-actions   # restore steward decisions
+python dq_engine\review\resolve_identity.py --import-actions   # restore steward decisions
 python main.py --from identity                          # apply them
 ```
 
 ## Layout
 
-| Path | What it holds |
-|---|---|
-| `main.py` | Pipeline orchestrator (stages, ordering, gates) |
-| `dq_engine/` | DQ, identity, survivorship, scoring and reporting scripts |
-| `dbt/cdp_dq/` | Staging and unified customer models |
-| `metadata/` | Rule registry and the versioned steward audit export |
-| `data/` | Generated source CSVs |
-| `reports/` | Generated dashboard |
+```
+main.py                  orchestrator - stage order, gates, CLI
+dq_engine/
+  sql/                   schema DDL and migrations
+  source_dq/             rule registry, execution, incidents,
+                         quarantine, summary, source gate, attribute DQ
+  identity/              candidate generation, decision, ranking, clustering
+  golden/                survivorship, cross-source consistency, golden score
+  review/                review queue, steward resolution workflow
+  scoring/               overall CDP score and CDP gate
+  reporting/             run history, lineage, dashboard
+  tools/                 source data generation, profiling
+dbt/cdp_dq/              staging and unified customer models
+metadata/                rule registry, steward audit export
+data/                    generated source CSVs
+reports/                 generated dashboard
+```
+
+Every script is a standalone entry point against the same DuckDB file -
+nothing imports anything else, so `main.py` owns the ordering. The
+subfolders mirror the pipeline stages.
 
 ## Quality gates
 
@@ -97,8 +110,8 @@ Reviews are raised automatically and resolved explicitly - never
 auto-approved:
 
 ```powershell
-python dq_engine\resolve_identity.py --list
-python dq_engine\resolve_identity.py --source MOBILE:MOB002 --approve `
+python dq_engine\review\resolve_identity.py --list
+python dq_engine\review\resolve_identity.py --source MOBILE:MOB002 --approve `
     --golden-id G000002 --reason "matching phone, email and birth date"
 python main.py --from identity
 ```
@@ -111,7 +124,7 @@ Audit history is never deleted.
 ## Explainability
 
 ```powershell
-python dq_engine\lineage_builder.py --explain G000002
+python dq_engine\reporting\lineage_builder.py --explain G000002
 ```
 
 Shows each surviving attribute, the source record it came from, its DQ
