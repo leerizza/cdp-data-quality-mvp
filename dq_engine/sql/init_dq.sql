@@ -328,6 +328,33 @@ CREATE TABLE IF NOT EXISTS cdp.cdp_quality_gate (
 );
 
 -- =============================================================
+-- Golden ID registry (persistent identity).
+--
+-- identity_clustering rebuilds clusters from scratch on every run. Without
+-- a registry the golden ids were positional (G000001, G000002, ... in sort
+-- order), so any membership change renumbered unrelated entities and broke
+-- every downstream reference - including cdp.identity_resolution_action,
+-- which stores the golden_id a steward approved.
+--
+-- The registry maps a cluster to a stable golden_id:
+--   cluster_signature  sha256 of the sorted member keys
+--   is_active          FALSE once a cluster no longer exists; rows are
+--                      retired, never deleted, and their numbers are
+--                      never handed out again.
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS cdp.golden_entity_identity (
+    golden_id VARCHAR PRIMARY KEY,
+    cluster_signature VARCHAR NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE INDEX IF NOT EXISTS idx_golden_entity_identity_signature
+    ON cdp.golden_entity_identity (cluster_signature);
+
+-- =============================================================
 -- Per-run snapshot for history and trend.
 --
 -- Golden-layer tables hold only the current state (no run_id), so a

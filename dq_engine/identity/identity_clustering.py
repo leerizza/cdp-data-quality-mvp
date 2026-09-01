@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 
 import duckdb
@@ -9,6 +10,151 @@ DB_PATH = PROJECT_ROOT / "database" / "cdp.duckdb"
 
 def make_key(source_system, source_customer_id):
     return f"{source_system}::{source_customer_id}"
+
+
+def cluster_signature(members) -> str:
+    """Stable fingerprint of a cluster, from its sorted member keys.
+
+    Order-independent, so the same set of members always produces the
+    same signature no matter how clustering happened to walk them.
+    """
+    return hashlib.sha256("|".join(sorted(members)).encode("utf-8")).hexdigest()
+
+
+def next_golden_id(conn) -> str:
+    """Allocate the next unused golden id.
+
+    Numbers are taken from the registry including retired rows, so a
+    number is never handed out twice even after a cluster disappears.
+    """
+    row = conn.execute(
+        """
+        SELECT MAX(CAST(SUBSTR(golden_id, 2) AS INTEGER))
+        FROM cdp.golden_entity_identity
+        WHERE regexp_matches(golden_id, '^G[0-9]+$')
+        """
+    ).fetchone()
+
+    highest = row[0] if row and row[0] is not None else 0
+    return f"G{highest + 1:06d}"
+
+
+def bootstrap_registry(conn) -> int:
+    """Seed the registry from golden entities that predate it.
+
+    Backfilled here rather than in SQL so the signature is produced by
+    exactly the same code path that will later look it up - a separate
+    SQL hash implementation could drift and silently mint new ids for
+    clusters that already have one.
+
+    Runs only when the registry is empty. Safe to call every time.
+    """
+    already = conn.execute(
+        "SELECT COUNT(*) FROM cdp.golden_entity_identity"
+    ).fetchone()[0]
+
+    if already:
+        return 0
+
+    existing = conn.execute(
+        """
+        SELECT
+            e.golden_id,
+            m.source_system,
+            m.source_customer_id
+        FROM cdp.golden_entity e
+        JOIN cdp.golden_entity_member m
+          ON m.golden_id = e.golden_id
+        """
+    ).fetchall()
+
+    if not existing:
+        return 0
+
+    members_by_golden: dict[str, set[str]] = {}
+    for golden_id, source_system, source_customer_id in existing:
+        members_by_golden.setdefault(golden_id, set()).add(
+            make_key(source_system, source_customer_id)
+        )
+
+    for golden_id, members in sorted(members_by_golden.items()):
+        conn.execute(
+            """
+            INSERT INTO cdp.golden_entity_identity (
+                golden_id, cluster_signature, is_active
+            )
+            VALUES (?, ?, TRUE)
+            ON CONFLICT (golden_id) DO NOTHING
+            """,
+            [golden_id, cluster_signature(members)],
+        )
+
+    return len(members_by_golden)
+
+
+def resolve_golden_id(conn, members, claimed: set[str]) -> tuple[str, str]:
+    """Find the golden id for this cluster, or mint one.
+
+    Three steps, in order:
+
+    1. Exact signature match - an unchanged cluster keeps its id. This is
+       what makes a plain rebuild idempotent.
+    2. Greatest member overlap with an active entity - a cluster that
+       gained or lost members carries its id forward. Without this a
+       steward approving MOB002 into G000002 would change the signature
+       and mint a brand new id, orphaning the very approval that caused
+       the change.
+    3. Otherwise it is genuinely new, so allocate the next number.
+
+    Returns (golden_id, reason) where reason is one of
+    'signature' | 'overlap' | 'new'.
+    """
+    signature = cluster_signature(members)
+
+    row = conn.execute(
+        """
+        SELECT golden_id
+        FROM cdp.golden_entity_identity
+        WHERE cluster_signature = ?
+        ORDER BY golden_id
+        LIMIT 1
+        """,
+        [signature],
+    ).fetchone()
+
+    if row and row[0] not in claimed:
+        return row[0], "signature"
+
+    # Overlap against the membership recorded for the previous run.
+    candidates = conn.execute(
+        """
+        SELECT
+            m.golden_id,
+            m.source_system,
+            m.source_customer_id
+        FROM cdp.golden_entity_member m
+        JOIN cdp.golden_entity_identity i
+          ON i.golden_id = m.golden_id
+        WHERE i.is_active = TRUE
+        """
+    ).fetchall()
+
+    overlap: dict[str, int] = {}
+    member_set = set(members)
+
+    for golden_id, source_system, source_customer_id in candidates:
+        if golden_id in claimed:
+            continue
+        if make_key(source_system, source_customer_id) in member_set:
+            overlap[golden_id] = overlap.get(golden_id, 0) + 1
+
+    if overlap:
+        # Most shared members wins; golden_id breaks ties so the choice
+        # does not depend on row order.
+        best = sorted(overlap.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+        return best, "overlap"
+
+    return next_golden_id(conn), "new"
 
 
 class UnionFind:
@@ -275,15 +421,15 @@ def main():
     # Singleton records remain unresolved.
     # ============================================================
 
-    conn.execute("""
-        DELETE FROM cdp.golden_entity_member
-    """)
+    bootstrapped = bootstrap_registry(conn)
+    if bootstrapped:
+        print(f"Registry bootstrapped from {bootstrapped} existing entity(ies).")
 
-    conn.execute("""
-        DELETE FROM cdp.golden_entity
-    """)
-
-    golden_counter = 1
+    # Resolve ids BEFORE clearing the tables: the overlap rule compares
+    # this run's clusters against the membership the previous run left
+    # behind, so it has to read them while they are still there.
+    resolved: list[tuple[str, list[str], bool]] = []
+    claimed: set[str] = set()
 
     for root, members in sorted(
         clusters.items(),
@@ -301,6 +447,36 @@ def main():
             for member in members
         )
 
+        golden_id, reason = resolve_golden_id(conn, members, claimed)
+        claimed.add(golden_id)
+        resolved.append((golden_id, members, has_conflict))
+
+        if reason != "signature":
+            print(f"  {golden_id}: matched by {reason} ({len(members)} members)")
+
+    conn.execute("""
+        DELETE FROM cdp.golden_entity_member
+    """)
+
+    conn.execute("""
+        DELETE FROM cdp.golden_entity
+    """)
+
+    # Retire registry rows whose cluster no longer exists. Kept, never
+    # deleted, so their numbers stay spent and history is preserved.
+    if claimed:
+        placeholders = ", ".join("?" for _ in claimed)
+        conn.execute(
+            f"""
+            UPDATE cdp.golden_entity_identity
+            SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+            WHERE is_active = TRUE AND golden_id NOT IN ({placeholders})
+            """,
+            list(claimed),
+        )
+
+    for golden_id, members, has_conflict in resolved:
+
         if has_conflict:
             entity_status = "REVIEW"
             confidence = "MEDIUM"
@@ -308,8 +484,18 @@ def main():
             entity_status = "ACTIVE"
             confidence = "HIGH"
 
-        golden_id = (
-            f"G{golden_counter:06d}"
+        conn.execute(
+            """
+            INSERT INTO cdp.golden_entity_identity (
+                golden_id, cluster_signature, is_active
+            )
+            VALUES (?, ?, TRUE)
+            ON CONFLICT (golden_id) DO UPDATE SET
+                cluster_signature = EXCLUDED.cluster_signature,
+                updated_at = now(),
+                is_active = TRUE
+            """,
+            [golden_id, cluster_signature(members)],
         )
 
         conn.execute(
@@ -365,8 +551,6 @@ def main():
                 ],
             )
 
-        golden_counter += 1
-
     # ============================================================
     # 8. Output
     # ============================================================
@@ -398,6 +582,21 @@ def main():
                 membership_confidence
             FROM cdp.golden_entity_member
             ORDER BY golden_id, source_system
+        """)
+    )
+
+    print("\n=== GOLDEN ID REGISTRY ===")
+
+    print(
+        conn.sql("""
+            SELECT
+                golden_id,
+                SUBSTR(cluster_signature, 1, 12) AS signature,
+                is_active,
+                created_at,
+                updated_at
+            FROM cdp.golden_entity_identity
+            ORDER BY golden_id
         """)
     )
 
