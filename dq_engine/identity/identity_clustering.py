@@ -44,11 +44,16 @@ def cluster_signature(members) -> str:
     return hashlib.sha256("|".join(sorted(members)).encode("utf-8")).hexdigest()
 
 
-def next_golden_id(conn) -> str:
+def next_golden_id(conn, claimed=frozenset()) -> str:
     """Allocate the next unused golden id.
 
     Numbers are taken from the registry including retired rows, so a
     number is never handed out twice even after a cluster disappears.
+
+    `claimed` covers ids already handed out during this run: registry
+    rows are only written after every cluster has been resolved, so on a
+    database with no registry yet the query alone would return the same
+    number for every cluster.
     """
     row = conn.execute(
         """
@@ -59,7 +64,12 @@ def next_golden_id(conn) -> str:
     ).fetchone()
 
     highest = row[0] if row and row[0] is not None else 0
-    return f"G{highest + 1:06d}"
+
+    candidate = highest + 1
+    while f"G{candidate:06d}" in claimed:
+        candidate += 1
+
+    return f"G{candidate:06d}"
 
 
 def bootstrap_registry(conn) -> int:
@@ -177,7 +187,7 @@ def resolve_golden_id(conn, members, claimed: set[str]) -> tuple[str, str]:
         best = sorted(overlap.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
         return best, "overlap"
 
-    return next_golden_id(conn), "new"
+    return next_golden_id(conn, claimed), "new"
 
 
 class UnionFind:
@@ -282,7 +292,16 @@ def main():
         WHERE action_type = 'APPROVED'
     """).fetchall()
 
-    golden_anchor = {}
+    # Every key that belongs to a golden entity by human decision: the
+    # approved records themselves, plus whoever the previous run already
+    # placed in that entity.
+    #
+    # Seeding from existing membership matters. Anchoring only on the
+    # approved records means a single approval unions nothing - it just
+    # becomes its own anchor - so a lone "MOB002 -> G000002" would leave
+    # MOB002 unresolved and the approval would appear to do nothing.
+    # Read before the golden tables are cleared further down.
+    approved_by_golden: dict[str, set[str]] = {}
 
     for (
         source_system,
@@ -290,18 +309,35 @@ def main():
         golden_id,
     ) in approved_actions:
 
-        source_key = make_key(
-            source_system,
-            source_customer_id,
+        if golden_id is None:
+            continue
+
+        approved_by_golden.setdefault(golden_id, set()).add(
+            make_key(source_system, source_customer_id)
         )
 
-        if golden_id in golden_anchor:
-            uf.union(
-                source_key,
-                golden_anchor[golden_id],
-            )
-        else:
-            golden_anchor[golden_id] = source_key
+    for golden_id, approved_keys in approved_by_golden.items():
+
+        existing_members = conn.execute(
+            """
+            SELECT source_system, source_customer_id
+            FROM cdp.golden_entity_member
+            WHERE golden_id = ?
+            """,
+            [golden_id],
+        ).fetchall()
+
+        group = set(approved_keys)
+        group.update(
+            make_key(source_system, source_customer_id)
+            for source_system, source_customer_id in existing_members
+        )
+
+        # Only records still present in the source data can be clustered.
+        group = sorted(key for key in group if key in uf.parent)
+
+        for other in group[1:]:
+            uf.union(group[0], other)
     # ============================================================
     # 3. Build trusted clusters
     # ============================================================

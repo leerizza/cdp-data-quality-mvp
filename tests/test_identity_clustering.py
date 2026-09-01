@@ -33,6 +33,20 @@ def test_first_id_is_g000001(clustering, conn):
     assert clustering.next_golden_id(conn) == "G000001"
 
 
+def test_ids_are_unique_on_an_empty_registry(clustering, conn):
+    """Regression: every new cluster used to get G000001.
+
+    Registry rows are written only after all clusters are resolved, so
+    on a fresh database the MAX() lookup returns nothing each time. The
+    ids claimed so far in this run have to be taken into account.
+    """
+    first = clustering.next_golden_id(conn, set())
+    second = clustering.next_golden_id(conn, {first})
+    third = clustering.next_golden_id(conn, {first, second})
+
+    assert [first, second, third] == ["G000001", "G000002", "G000003"]
+
+
 def test_ids_do_not_reuse_retired_numbers(clustering, conn):
     conn.execute(
         """
