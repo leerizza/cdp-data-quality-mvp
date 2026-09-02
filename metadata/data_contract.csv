@@ -1,0 +1,25 @@
+contract_id,source_system,file_name,column_name,data_type,is_nullable,is_required,severity,status,owner
+DC-MST-001,MASTER,customer.csv,customer_id,VARCHAR,FALSE,TRUE,CRITICAL,APPROVED,Data Management
+DC-MST-002,MASTER,customer.csv,nik,VARCHAR,TRUE,TRUE,CRITICAL,APPROVED,Data Management
+DC-MST-003,MASTER,customer.csv,full_name,VARCHAR,TRUE,TRUE,HIGH,APPROVED,Data Management
+DC-MST-004,MASTER,customer.csv,phone,VARCHAR,TRUE,TRUE,HIGH,APPROVED,Data Management
+DC-MST-005,MASTER,customer.csv,email,VARCHAR,TRUE,TRUE,MEDIUM,APPROVED,Data Management
+DC-MST-006,MASTER,customer.csv,birth_date,DATE,TRUE,TRUE,HIGH,APPROVED,Data Management
+DC-CRM-001,CRM,crm_customer.csv,source_customer_id,VARCHAR,FALSE,TRUE,CRITICAL,APPROVED,CRM Team
+DC-CRM-002,CRM,crm_customer.csv,nik,VARCHAR,TRUE,TRUE,CRITICAL,APPROVED,CRM Team
+DC-CRM-003,CRM,crm_customer.csv,full_name,VARCHAR,TRUE,TRUE,HIGH,APPROVED,CRM Team
+DC-CRM-004,CRM,crm_customer.csv,phone,VARCHAR,TRUE,TRUE,HIGH,APPROVED,CRM Team
+DC-CRM-005,CRM,crm_customer.csv,email,VARCHAR,TRUE,TRUE,MEDIUM,APPROVED,CRM Team
+DC-CRM-006,CRM,crm_customer.csv,birth_date,DATE,TRUE,TRUE,HIGH,APPROVED,CRM Team
+DC-LOS-001,LOS,los_customer.csv,source_customer_id,VARCHAR,FALSE,TRUE,CRITICAL,APPROVED,Lending Ops
+DC-LOS-002,LOS,los_customer.csv,nik,VARCHAR,TRUE,TRUE,CRITICAL,APPROVED,Lending Ops
+DC-LOS-003,LOS,los_customer.csv,full_name,VARCHAR,TRUE,TRUE,HIGH,APPROVED,Lending Ops
+DC-LOS-004,LOS,los_customer.csv,phone,VARCHAR,TRUE,TRUE,HIGH,APPROVED,Lending Ops
+DC-LOS-005,LOS,los_customer.csv,email,VARCHAR,TRUE,TRUE,MEDIUM,APPROVED,Lending Ops
+DC-LOS-006,LOS,los_customer.csv,birth_date,DATE,TRUE,TRUE,HIGH,APPROVED,Lending Ops
+DC-MOB-001,MOBILE,mobile_customer.csv,source_customer_id,VARCHAR,FALSE,TRUE,CRITICAL,APPROVED,Mobile Team
+DC-MOB-002,MOBILE,mobile_customer.csv,nik,VARCHAR,TRUE,TRUE,CRITICAL,APPROVED,Mobile Team
+DC-MOB-003,MOBILE,mobile_customer.csv,full_name,VARCHAR,TRUE,TRUE,HIGH,APPROVED,Mobile Team
+DC-MOB-004,MOBILE,mobile_customer.csv,phone,VARCHAR,TRUE,TRUE,HIGH,APPROVED,Mobile Team
+DC-MOB-005,MOBILE,mobile_customer.csv,email,VARCHAR,TRUE,TRUE,MEDIUM,APPROVED,Mobile Team
+DC-MOB-006,MOBILE,mobile_customer.csv,birth_date,DATE,TRUE,TRUE,HIGH,APPROVED,Mobile Team

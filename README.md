@@ -7,6 +7,7 @@ not just as a reporting layer.
 
 ```
 Source CSV
+  -> Data contract        shape check before anything is loaded
   -> Source DQ            rule engine, quarantine, gate
   -> Unified customer     dbt models across CRM / LOS / MOBILE
   -> Identity Resolution   candidates -> decisions -> clustering
@@ -73,7 +74,7 @@ python main.py --from identity                          # apply them
 main.py                  orchestrator - stage order, gates, CLI
 dq_engine/
   sql/                   schema DDL and migrations
-  source_dq/             rule registry, execution, incidents,
+  source_dq/             data contracts, rule registry, execution, incidents,
                          quarantine, summary, source gate, attribute DQ
   identity/              candidate generation, decision, ranking, clustering
   golden/                survivorship, cross-source consistency, golden score
@@ -82,7 +83,7 @@ dq_engine/
   reporting/             run history, lineage, dashboard
   tools/                 source data generation, profiling
 dbt/cdp_dq/              staging and unified customer models
-metadata/                rule registry, steward audit export
+metadata/                data contracts, rule registry, steward audit export
 data/                    generated source CSVs
 reports/                 generated dashboard
 ```
@@ -91,10 +92,40 @@ Every script is a standalone entry point against the same DuckDB file -
 nothing imports anything else, so `main.py` owns the ordering. The
 subfolders mirror the pipeline stages.
 
+## Data contracts
+
+Every rule in the registry asks a question about the contents of a row,
+and none of them survives the column it names disappearing. When a source
+system drops or renames a column, `dbt seed` loads the file anyway and the
+staging model dies on a binder error - so the run is over before the DQ
+engine starts. No verdict, no incident, nothing for the gate to block on.
+A stack trace is not a quality signal.
+
+`metadata/data_contract.csv` declares the agreed *shape* of each file -
+columns, types, which are required, which may be null. The validator runs
+before anything is loaded and reports `FILE_MISSING`, `MISSING_COLUMN`,
+`NEW_COLUMN`, `TYPE_MISMATCH` or `NULL_VIOLATION` into
+`dq.contract_violation`.
+
+```powershell
+python main.py --stage contract
+```
+
+The split from the rule registry is deliberate: **a contract describes
+structure, a rule describes content**. Nullability is therefore declared
+only on key columns - a null email is `DQ-CUS-007`'s business, and putting
+it in both places would raise one issue twice under two names.
+
+A missing required column is always CRITICAL, whatever severity the
+contract gives it. Severity grades how much an attribute's *content*
+matters; a column that is not there is a different question, because every
+model naming it fails to compile.
+
 ## Quality gates
 
-Two gates, deliberately different questions:
+Three gates, deliberately different questions:
 
+- **Contract gate** (`contract_validator.py`) - is the file still the shape we agreed on?
 - **Source gate** (`dq_quality_gate.py`) - are raw records clean enough to load?
 - **CDP gate** (`cdp_quality_gate.py`) - is the golden layer fit to publish?
 
@@ -138,7 +169,7 @@ the golden NIK comes from CRM002 while the phone still comes from MOB002.
 
 ## Status
 
-Done: source DQ, attribute DQ, unified customer, identity resolution,
+Done: data contracts, source DQ, attribute DQ, unified customer, identity resolution,
 golden entity, survivorship with provenance, cross-source consistency,
 review queue and resolution workflow, golden quality score, overall CDP
 quality score, CDP quality gate, run history and trend, lineage,

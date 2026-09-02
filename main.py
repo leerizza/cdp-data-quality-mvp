@@ -5,7 +5,7 @@ that talk to the same DuckDB file. Nothing imports anything else, so the
 run order below is the only thing that makes the pipeline coherent.
 
 Usage:
-    python main.py                     # stage -> dq -> curate -> identity -> golden -> review
+    python main.py                     # contract -> stage -> dq -> curate -> identity -> golden -> review
     python main.py --list              # show every stage and step
     python main.py --stage dq          # run one stage (repeatable)
     python main.py --from identity     # run this stage and everything after it
@@ -71,6 +71,22 @@ STAGES: list[Stage] = [
         [
             Step("generate multi-source CSVs", "py", "tools/generate_multi_source_v2.py"),
             Step("sync data/ -> dbt seeds/", "sync"),
+        ],
+    ),
+    Stage(
+        "contract",
+        "Check every source file against its declared shape before loading",
+        [
+            # init runs here as well as in dq: the contract stage has to be
+            # able to stand alone (--stage contract), and the DDL is
+            # idempotent, so applying it twice costs nothing.
+            Step("init DQ schema", "sql", "sql/init_dq.sql"),
+            Step(
+                "validate data contracts",
+                "py",
+                "source_dq/contract_validator.py",
+                note="a missing or retyped column would otherwise kill dbt before any DQ runs",
+            ),
         ],
     ),
     Stage(
@@ -201,7 +217,11 @@ STAGES: list[Stage] = [
 ]
 
 # Gates report by default and only halt the run under --strict.
-GATE_STEPS = {"source_dq/dq_quality_gate.py", "scoring/cdp_quality_gate.py"}
+GATE_STEPS = {
+    "source_dq/contract_validator.py",
+    "source_dq/dq_quality_gate.py",
+    "scoring/cdp_quality_gate.py",
+}
 
 # Stages that only run when explicitly asked for.
 OPT_IN = {"generate", "test"}

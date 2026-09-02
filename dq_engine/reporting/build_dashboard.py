@@ -185,6 +185,22 @@ def build(conn) -> str:
       ORDER BY weight DESC, dimension
   ''', ["Dimension", "Score", "Weight", "Contribution", "Detail"], [run_id])}
 
+  <h2>Data contracts</h2>
+  {table(conn, '''
+      SELECT v.source_system, v.file_name, v.column_name, v.violation_type,
+             v.severity, v.affected_records, v.message
+      FROM dq.contract_violation v
+      JOIN (
+          SELECT contract_run_id FROM dq.contract_run
+          ORDER BY started_at DESC LIMIT 1
+      ) latest USING (contract_run_id)
+      ORDER BY
+          CASE v.severity WHEN 'CRITICAL' THEN 1 WHEN 'HIGH' THEN 2
+                          WHEN 'MEDIUM' THEN 3 ELSE 4 END,
+          v.file_name, v.column_name
+  ''', ["Source", "File", "Column", "Drift", "Severity", "Records", "Detail"],
+       pill_cols={4})}
+
   <h2>Source DQ rules</h2>
   {table(conn, '''
       SELECT rule_id, severity, status, failed_records, threshold, metric_type

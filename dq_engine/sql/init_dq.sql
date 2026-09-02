@@ -549,6 +549,72 @@ CREATE TABLE IF NOT EXISTS cdp.golden_lineage (
 );
 
 -- =============================================================
+-- Data contracts: the agreed *shape* of each source file.
+--
+-- Every rule in dq.dq_rule_master inspects the contents of a row -
+-- nulls, formats, duplicates. None of them can fire if the file no
+-- longer has the column they name. When a source system drops or
+-- renames a column, dbt seed still loads the file and the staging
+-- model fails on a binder error, so the pipeline dies before the DQ
+-- engine ever runs: no verdict, no incident, no gate. The contract
+-- closes that hole by checking the shape before anything is loaded.
+--
+-- The split is deliberate: a contract describes structure (does the
+-- column exist, does it hold the declared type, is the key present),
+-- the rule registry describes content. Nullability is therefore only
+-- declared on key columns - a null email is a rule's business, not
+-- the contract's, and declaring it in both places would raise the
+-- same issue twice under two different names.
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS dq.data_contract (
+    contract_id VARCHAR PRIMARY KEY,
+    source_system VARCHAR NOT NULL,
+    file_name VARCHAR NOT NULL,
+    column_name VARCHAR NOT NULL,
+    data_type VARCHAR NOT NULL,
+    is_nullable BOOLEAN NOT NULL,
+    is_required BOOLEAN NOT NULL,
+    severity VARCHAR NOT NULL,
+    status VARCHAR NOT NULL,
+    owner VARCHAR NOT NULL,
+    loaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS dq.contract_run (
+    contract_run_id VARCHAR PRIMARY KEY,
+    started_at TIMESTAMP,
+    files_checked INTEGER NOT NULL,
+    violations INTEGER NOT NULL,
+    critical_violations INTEGER NOT NULL,
+    gate_status VARCHAR NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS dq.contract_violation (
+    violation_id VARCHAR PRIMARY KEY,
+    contract_run_id VARCHAR NOT NULL,
+
+    source_system VARCHAR NOT NULL,
+    file_name VARCHAR NOT NULL,
+    column_name VARCHAR,
+
+    -- FILE_MISSING | MISSING_COLUMN | NEW_COLUMN
+    -- | TYPE_MISMATCH | NULL_VIOLATION
+    violation_type VARCHAR NOT NULL,
+    severity VARCHAR NOT NULL,
+
+    expected VARCHAR,
+    observed VARCHAR,
+    affected_records INTEGER,
+
+    message VARCHAR NOT NULL,
+    detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_contract_violation_run
+    ON dq.contract_violation (contract_run_id, severity);
+
+-- =============================================================
 -- Migrations
 --
 -- CREATE TABLE IF NOT EXISTS leaves pre-existing tables untouched,
