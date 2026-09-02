@@ -428,12 +428,26 @@ def main() -> int:
         print_plan()
         return 0
 
-    if not DB_PATH.exists() and not args.dry_run:
-        print(f"! database not found: {DB_PATH}", file=sys.stderr)
-        print("  the dbt profile and every dq_engine script expect it there.", file=sys.stderr)
-        return 1
-
     stage_names = resolve_stages(args)
+
+    if not DB_PATH.exists() and not args.dry_run:
+        # A run that applies the schema creates the file on its way past,
+        # so starting from nothing is legitimate - that is exactly what a
+        # fresh clone does. A run that skips ahead is not: every script
+        # after this point reads tables it would find empty or absent.
+        applies_schema = any(
+            step.kind == "sql"
+            for name in stage_names
+            for step in STAGES_BY_NAME[name].steps
+        )
+        if not applies_schema:
+            print(f"! database not found: {DB_PATH}", file=sys.stderr)
+            print("  the dbt profile and every dq_engine script expect it there.", file=sys.stderr)
+            print("  run `python main.py` first to build it.", file=sys.stderr)
+            return 1
+
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        print(f"database not found - creating it at {DB_PATH}")
     started = time.time()
     done: list[tuple[str, float]] = []
 

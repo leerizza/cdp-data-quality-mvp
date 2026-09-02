@@ -1,0 +1,20 @@
+# dbt looks for profiles.yml in the current working directory before it
+# falls back to ~/.dbt, and main.py runs every dbt command with this
+# directory as its cwd. Keeping the profile here therefore makes a fresh
+# clone runnable with no manual setup - and, unlike a copy in the home
+# directory, it travels with the repo.
+#
+# The path is relative to this file's directory, which is what makes that
+# work; an absolute path would pin the project to one machine.
+#
+# The database file must stay named cdp.duckdb. DuckDB names the attached
+# database after the file, so every cdp.<table> reference in the engine
+# resolves through that name. See dq_engine/sql/init_dq.sql.
+
+cdp_dq:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../../database/cdp.duckdb
+      threads: 1

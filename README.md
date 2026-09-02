@@ -32,17 +32,11 @@ python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
 ```
 
-dbt reads the `cdp_dq` profile from `~/.dbt/profiles.yml`:
-
-```yaml
-cdp_dq:
-  target: dev
-  outputs:
-    dev:
-      type: duckdb
-      path: <repo>/database/cdp.duckdb
-      threads: 1
-```
+That is the whole setup. The dbt profile lives in the repo at
+`dbt/cdp_dq/profiles.yml` with a path relative to itself, and `main.py`
+runs dbt from that directory - dbt reads the working directory before
+`~/.dbt`, so a fresh clone needs nothing in your home directory. The
+database is created on the first run.
 
 > The database file **must** stay at `database/cdp.duckdb`. DuckDB names the
 > attached database after the file, so every `cdp.<table>` reference in the
@@ -82,7 +76,7 @@ dq_engine/
   scoring/               overall CDP score and CDP gate
   reporting/             run history, lineage, dashboard
   tools/                 source data generation, profiling
-dbt/cdp_dq/              staging and unified customer models
+dbt/cdp_dq/              staging and unified customer models, dbt profile
 metadata/                data contracts, rule registry, steward audit export
 data/                    generated source CSVs
 reports/                 generated dashboard
